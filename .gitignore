@@ -1,6 +1,7 @@
 /box_results/
 /crop_results/
 /weights/
+/logs/
 /.idea/
 /.idea/EndtoEndCroppingSystem-modern.iml
 /.idea/misc.xml
