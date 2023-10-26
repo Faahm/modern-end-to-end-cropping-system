@@ -14,6 +14,11 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
 
+# os.environ['TF_ENABLE_GPU_GARBAGE_COLLECTION'] = 'false'
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+
 C = config.Config()
 
 print("Loading dataset...")
@@ -70,13 +75,13 @@ val_datagen = ImageDataGenerator()
 train_generator = train_datagen.flow(
     trainImages,
     trainTargets,
-    batch_size=100
+    batch_size=32
 )
 
-val_generator = train_datagen.flow(
+val_generator = val_datagen.flow(
     testImages,
     testTargets,
-    batch_size=100,
+    batch_size=32,
     shuffle=False
 )
 
@@ -99,18 +104,18 @@ for layer in model.layers[start_index:end_index + 1]:
 # model.summary()
 
 # Compile the model
-model.compile(optimizer=SGD(lr=0.0001), loss='mean_squared_error')
+model.compile(optimizer=SGD(learning_rate=0.0001), loss='mean_squared_error')
 
 trainImagesLength = len(trainImages)
 testImagesLength = len(testImages)
 
-trainImages = tf.convert_to_tensor(trainImages)
-testImages = tf.convert_to_tensor(testImages)
-trainTargets = tf.convert_to_tensor(trainTargets)
-testTargets = tf.convert_to_tensor(testTargets)
+# trainImages = tf.convert_to_tensor(trainImages)
+# testImages = tf.convert_to_tensor(testImages)
+# trainTargets = tf.convert_to_tensor(trainTargets)
+# testTargets = tf.convert_to_tensor(testTargets)
 
 # Train the model
-# print("Training the model...")
+print("Training the model...")
 # H = model.fit(trainImages, trainTargets, steps_per_epoch=trainImagesLength, validation_steps=testImagesLength,
 #               validation_data=(testImages, testTargets),
 #               batch_size=None, epochs=6, verbose=1)
@@ -121,5 +126,6 @@ H = model.fit(train_generator,
               epochs=6)
 
 # Save the model
-print("Saving the model...")
+print("Saving the weights...")
 model.save("test.h5")
+print("Weights saved.")

@@ -34,6 +34,15 @@ class RoiPoolingConv(Layer):
 
         super(RoiPoolingConv, self).__init__(**kwargs)
 
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "pool_size": self.pool_size,
+            "num_rois": self.num_rois,
+        })
+        return config
+
+
     def build(self, input_shape):
         if self.dim_ordering == 'channels_first':
             self.nb_channels = input_shape[0][1]
