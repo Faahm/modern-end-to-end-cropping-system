@@ -1,4 +1,6 @@
 import os
+
+
 class Config:
 
     def __init__(self):
@@ -26,7 +28,7 @@ class Config:
         self.aesthetics_box_color = 'yellow'
 
     def set_model(self):
-        path_base = 'weights/model_'
+        path_base = 'weights\\model_'
         path_ext = '.h5'
         path_scale = str(self.scale)
         path_ratio = 'square' if self.ratio else ''

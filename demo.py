@@ -29,7 +29,7 @@ def get_shape(img, w, h, scale, ratio):
 
 
 # Main function to process images
-def runn(model, images):
+def run(model, images):
     if C.log:
         result = []
     if os.path.isdir(images):
@@ -83,7 +83,7 @@ def runn(model, images):
         # Add offset to face_box to get aes_bbox
         aes_bbox = add_offset(w2 - 1, h2 - 1, saliency_box, offset)
 
-        img_name = image_name.split('/')[-1]
+        img_name = image_name.split('\\')[-1]
         if C.log:
             to_file = ' '.join([img_name] + [str(u) for u in saliency_box] + [str(y) for y in aes_bbox])
             result.append(to_file)
@@ -96,6 +96,7 @@ def runn(model, images):
             draw = ImageDraw.Draw(img_draw)
             draw.rectangle(saliency_box, None, C.saliency_box_color)
             draw.rectangle(aes_box, None, C.aesthetics_box_color)
+            print(os.path.join(C.box_out_path, img_name))
             img_draw.save(os.path.join(C.box_out_path, img_name))
         if C.crop:
             if not os.path.isdir(C.crop_out_path):
@@ -118,7 +119,7 @@ def main(argv=None):
         images = sys.argv[1]
     model = M.EndToEndModel(gamma=C.gamma, theta=C.theta, stage='test').BuildModel()
     model.load_weights(C.model)
-    runn(model, images)
+    run(model, images)
 
 
 if __name__ == "__main__":

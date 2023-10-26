@@ -12,6 +12,7 @@ from tensorflow.keras.layers import (
 from tensorflow.keras import backend as K
 from models.RoiPoolingConv import RoiPoolingConv
 
+
 class EndToEndModel(object):
 
     def __init__(self, weights=None, gamma=3.0, pooling_regions=7, num_rois=1, theta=0.01, stage='train'):
