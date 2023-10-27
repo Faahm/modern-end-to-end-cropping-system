@@ -99,7 +99,6 @@ end_index = model.layers.index(model.get_layer('segmentation'))
 for layer in model.layers[start_index:end_index + 1]:
     layer.trainable = False
 
-
 # model.summary()
 
 # Compile the model
@@ -119,10 +118,11 @@ print("Training the model...")
 #               validation_data=(testImages, testTargets),
 #               batch_size=None, epochs=6, verbose=1)
 H = model.fit(train_generator,
-              steps_per_epoch=trainImagesLength,
+              batch_size=32,
+              epochs=6,
               validation_data=val_generator,
-              validation_steps=testImagesLength,
-              epochs=6)
+              steps_per_epoch=trainImagesLength,
+              validation_steps=testImagesLength)
 
 # Save the model
 print("Saving the weights...")
