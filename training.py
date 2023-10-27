@@ -32,7 +32,7 @@ data = []
 offsets = []
 filenames = []
 
-# Get the training data
+# Get the training_images data
 for row in rows:
     row = row.split(",")
     filename, x1, x2, y1, y2 = row
