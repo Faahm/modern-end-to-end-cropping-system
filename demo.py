@@ -48,7 +48,11 @@ def run(model, images):
         w3, h3 = img_object.size
         img_object = img_object.convert('RGB')
         img_reshape = get_shape(img_object, w3, h3, C.scale, C.ratio)
-        # print("image_name: ", image_name)
+
+        if not os.path.exists("resized_testing"):
+            os.makedirs("resized_testing")
+        file_name = os.path.basename(image_name)
+        img_reshape.save(os.path.join("resized_testing", "resized_" + file_name))
 
         image = np.asarray(img_reshape)
         h1, w1 = image.shape[0], image.shape[1]
@@ -63,6 +67,7 @@ def run(model, images):
         image = np.expand_dims(image, axis=0)
         # Predict bounding boxes using the model
         boxes = model.predict(image, batch_size=1, verbose=0)
+        print("boxes:", boxes)
         # Extract offset and saliency_box from the model predictions (boxes)
         offset = boxes[0][0]
         saliency_box = boxes[1][0]

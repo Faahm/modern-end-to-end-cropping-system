@@ -1,4 +1,11 @@
+import os
+import sys
+import time
+import urllib.request
+import json
+
 import tensorflow as tf
+from tensorflow.keras import backend as K
 from tensorflow.keras.layers import (
     Input,
     concatenate,
@@ -9,8 +16,92 @@ from tensorflow.keras.layers import (
     Conv2D,
     MaxPooling2D
 )
-from tensorflow.keras import backend as K
+
 from models.RoiPoolingConv import RoiPoolingConv
+
+
+def face_plus_plus(filepath):
+    # API configuration
+    key = "ILUS28ltigP0UirSewQPZmKLCqFQEtg1"
+    secret = "vMLb1ufvKfjIgIcLShervHy723o7cdLI"
+
+    face_http_url = 'https://api-us.faceplusplus.com/facepp/v3/detect'
+    humanbody_http_url = 'https://api-us.faceplusplus.com/humanbodypp/v1/detect'
+
+    boundary = '----------%s' % hex(int(time.time() * 1000))
+    data = []
+    data.append(b'--%s' % boundary.encode('utf-8'))
+    data.append(b'Content-Disposition: form-data; name="%s"\r\n' % b'api_key')
+    data.append(key.encode('utf-8'))
+    data.append(b'--%s' % boundary.encode('utf-8'))
+    data.append(b'Content-Disposition: form-data; name="%s"\r\n' % b'api_secret')
+    data.append(secret.encode('utf-8'))
+    data.append(b'--%s' % boundary.encode('utf-8'))
+    fr = open(filepath, 'rb')
+    data.append(b'Content-Disposition: form-data; name="%s"; filename="12263.jpg"' % b'image_file')
+    data.append(b'Content-Type: %s\r\n' % b'application/octet-stream')
+    data.append(fr.read())
+    fr.close()
+    data.append(b'--%s--\r\n' % boundary.encode('utf-8'))
+
+    # Join data as bytes
+    http_body = b'\r\n'.join(data)
+
+    # Build HTTP request
+    req = urllib.request.Request(humanbody_http_url)
+
+    # Header
+    req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
+    req.data = http_body
+
+    try:
+        # Post data to server
+        resp = urllib.request.urlopen(req, timeout=5)
+        # Get response
+        qrcont = resp.read()
+        # Parse the JSON response
+        parsed_response = json.loads(qrcont)
+
+        # Check if human body detection was successful
+        if len(parsed_response['humanbodies']) != 0:
+            human_body_rectangle = parsed_response['humanbodies'][0]['humanbody_rectangle']
+
+            # Extract and print the face rectangle details
+            top = human_body_rectangle['top']
+            left = human_body_rectangle['left']
+            width = human_body_rectangle['width']
+            height = human_body_rectangle['height']
+
+            return [top, left, height, width]
+
+        else:
+            req = urllib.request.Request(face_http_url)
+
+            # Header
+            req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
+            req.data = http_body
+            # Post data to server
+            resp = urllib.request.urlopen(req, timeout=5)
+            # Get response
+            qrcont = resp.read()
+            # Parse the JSON response
+            parsed_response = json.loads(qrcont)
+            if len(parsed_response['faces']) != 0:
+                face_rectangle = parsed_response['faces'][0]['face_rectangle']
+
+                # Extract and print the face rectangle details
+                top = face_rectangle['top']
+                left = face_rectangle['left']
+                width = face_rectangle['width']
+                height = face_rectangle['height']
+
+                return [top, left, height, width]
+            else:
+                return None
+
+    except urllib.error.HTTPError as e:
+        print(e.read())
+        return None
 
 
 class EndToEndModel(object):
@@ -23,40 +114,28 @@ class EndToEndModel(object):
         self.num_rois = num_rois
         self.theta = theta
 
-    def binary(self, sample):
-        return (sample * sample) / (sample * sample + self.theta * self.theta)
 
     def cal_salient_region(self, sample):
+        images = sys.argv[1]
+        image_file = os.path.basename(images)
+        image_filepath = f"resized_testing\\resized_{image_file}"
+        face_plus_plus(image_filepath)
 
-        sample = (sample - K.min(sample)) / (K.max(sample) - K.min(sample))
+        # sr = tf.convert_to_tensor([top, left, height, width])
+        sr = tf.convert_to_tensor(face_plus_plus(image_filepath))
+        # print("cal_salient_region's sr", sr)
 
-        mask = self.binary(sample)
-        size = K.shape(sample)
-        row = K.cast(tf.range(start=1, limit=size[0] + 1, delta=1), dtype='float32')
-        row = K.reshape(row, (size[0], 1, 1))
-        m01 = row * mask
-
-        center_row = K.sum(m01) / K.sum(mask)
-        val_row = (m01 - center_row) * mask
-        val_row = K.sqrt(K.sum(val_row * val_row / K.sum(mask)))
-
-        col = K.cast(tf.range(start=1, limit=size[1] + 1, delta=1), dtype='float32')
-        col = K.reshape(col, (1, size[1], 1))
-        m10 = col * mask
-        center_col = K.sum(m10) / K.sum(mask)
-        val_col = (m10 - center_col) * mask
-        val_col = K.sqrt(K.sum(val_col * val_col / K.sum(mask)))
-        h = K.cast(size[0], dtype='float32')
-        w = K.cast(size[1], dtype='float32')
-        start_row = K.minimum(K.maximum(0.0, center_row - val_row * self.gamma), h)
-        start_col = K.minimum(K.maximum(0.0, center_col - val_col * self.gamma), w)
-        height = K.minimum(K.maximum(0.0, val_row * self.gamma * 2.0), h - start_row)
-        width = K.minimum(K.maximum(0.0, val_col * self.gamma * 2.0), w - start_col)
-
-        sr = tf.convert_to_tensor([start_row, start_col, height, width])
-
+        # Normalize the salient region coordinates by dividing by 16.0 (a scaling factor)
         sr = tf.cast(sr, dtype='float32')
+        # print("cal_salient_region's sr:", sr)
         sr = sr / 16.0
+        # Tensor("saliency_box/map/while/truediv_6:0", shape=(4,), dtype=float32)
+        # This tensor likely represents the bounding box coordinates of the salient region. The four elements
+        # typically correspond to:
+        # The Y-coordinate of the top-left corner of the bounding box.
+        # The X-coordinate of the top-left corner of the bounding box.
+        # The height (or vertical size) of the bounding box.
+        # The width (or horizontal size) of the bounding box.
         return sr
 
     def cal_salient_regions(self, samples):
