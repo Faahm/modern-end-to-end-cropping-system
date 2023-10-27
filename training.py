@@ -25,8 +25,7 @@ print("Loading dataset...")
 
 rows = open('portrait_data.csv').read().strip().split("\n")
 
-# MAKE SURE TO USE 224 RESIZED IMAGES!!!!!!!
-training_folder = "padded_images"
+training_folder = "resized_training"
 
 data = []
 offsets = []
@@ -75,13 +74,13 @@ val_datagen = ImageDataGenerator()
 train_generator = train_datagen.flow(
     trainImages,
     trainTargets,
-    batch_size=32
+    batch_size=1
 )
 
 val_generator = val_datagen.flow(
     testImages,
     testTargets,
-    batch_size=32,
+    batch_size=1,
     shuffle=False
 )
 

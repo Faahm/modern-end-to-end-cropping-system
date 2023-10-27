@@ -14,13 +14,13 @@ with warnings.catch_warnings():
 # loop through the image directory
 # get file name
 # get bbox with face++
-# compute for the offsets!!
+# compute for the offsets
 # put in an array [filename, x1, x2, y1, y2]
 # append to training_data array
 
 portrait_data = []
-img_folder = "training_images"  # the path to the folder of images!!
-filename_list = os.listdir(img_folder)  # returns a list of all files in directory
+img_folder = "training_images"
+filename_list = os.listdir(img_folder)
 
 
 def get_offset(wa, ha, bbox):
@@ -65,21 +65,47 @@ def add_offset(w, h, bbox, offset):
     return bbox_aes
 
 
-def get_shape(img, w, h, scale, ratio):
-    size = (w, h)
-    if ratio:
-        if scale is not None:
-            size = (scale, scale)
+# def get_shape(img, w, h, scale, ratio):
+#     size = (w, h)
+#     if ratio:
+#         if scale is not None:
+#             size = (scale, scale)
+#     else:
+#         if scale is not None:
+#             if w <= h:
+#                 size = (scale, scale * h // w)
+#             else:
+#                 size = (scale * w // h, scale)
+#     return img.resize(size, Image.ANTIALIAS)
+def get_shape(img, scale):
+    w, h = img.size
+    max_side = max(w, h)
+
+    if max_side <= scale:
+        # If the longest side is already smaller than or equal to the target size,
+        # then no need to resize.
+        return img
+
+    # Calculate the new dimensions while maintaining the aspect ratio.
+    if w >= h:
+        new_w = scale
+        new_h = int(h * (scale / w))
     else:
-        if scale is not None:
-            if w <= h:
-                size = (scale, scale * h // w)
-            else:
-                size = (scale * w // h, scale)
-    return img.resize(size, Image.ANTIALIAS)
+        new_w = int(w * (scale / h))
+        new_h = scale
 
+    # Create a new blank white image with the target size (224x224).
+    new_img = Image.new('RGB', (scale, scale), (255, 255, 255))
 
-# IMAGE PRE PROCESSING!!!
+    # Calculate the padding values for both width and height.
+    padding_w = (scale - new_w) // 2
+    padding_h = (scale - new_h) // 2
+
+    # Paste the resized image onto the blank image with padding.
+    new_img.paste(img.resize((new_w, new_h), Image.ANTIALIAS), (padding_w, padding_h))
+
+    return new_img
+
 
 def face_plus_plus(filepath):
     # API configuration
@@ -175,6 +201,9 @@ with open('portrait_data.csv', 'a', newline='') as file:
     for filename in filename_list:
         image_path = os.path.join(img_folder, filename)
 
+        if not os.path.exists("resized_training"):
+            os.makedirs("resized_training")
+
         # Check if the resized image already exists in the 'resized_training' directory
         resized_image_path = os.path.join("resized_training", filename)
 
@@ -184,9 +213,8 @@ with open('portrait_data.csv', 'a', newline='') as file:
 
         # GET THE IMAGE HEIGHT AND WIDTH
         img_object = Image.open(image_path)
-        w3, h3 = img_object.size
         img_object = img_object.convert('RGB')
-        img_reshape = get_shape(img_object, w3, h3, 224, False)
+        img_reshape = get_shape(img_object, 224)
         img_reshape.save(resized_image_path)
         print(f"Resized and saved: {resized_image_path}")
 

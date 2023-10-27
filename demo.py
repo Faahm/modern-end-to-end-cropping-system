@@ -44,11 +44,11 @@ def run(model, images):
         if not image_name.endswith(C.pic_extend):
             continue
         img_object = Image.open(image_name)
-        print("image_name", image_name)
+        # print("image_name", image_name)
         w3, h3 = img_object.size
         img_object = img_object.convert('RGB')
         img_reshape = get_shape(img_object, w3, h3, C.scale, C.ratio)
-        print("image_name: ", image_name)
+        # print("image_name: ", image_name)
 
         image = np.asarray(img_reshape)
         h1, w1 = image.shape[0], image.shape[1]
@@ -66,10 +66,10 @@ def run(model, images):
         # Extract offset and saliency_box from the model predictions (boxes)
         offset = boxes[0][0]
         saliency_box = boxes[1][0]
-        print("saliency_box:", saliency_box)
+        # print("saliency_box:", saliency_box)
         # Scale the saliency_box to match the image dimensions (multiple of 16)
         saliency_box = saliency_box * 16.0
-        print("saliency_box * 16:", saliency_box)
+        # print("saliency_box * 16:", saliency_box)
         saliency_box[2] = saliency_box[0] + saliency_box[2]
         saliency_box[3] = saliency_box[1] + saliency_box[3]
         # Convert the saliency_box coordinates to integers
@@ -96,7 +96,7 @@ def run(model, images):
             draw = ImageDraw.Draw(img_draw)
             draw.rectangle(saliency_box, None, C.saliency_box_color)
             draw.rectangle(aes_box, None, C.aesthetics_box_color)
-            print(os.path.join(C.box_out_path, img_name))
+            # print(os.path.join(C.box_out_path, img_name))
             img_draw.save(os.path.join(C.box_out_path, img_name))
         if C.crop:
             if not os.path.isdir(C.crop_out_path):
