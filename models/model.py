@@ -29,14 +29,10 @@ def face_plus_plus(filepath):
     humanbody_http_url = 'https://api-us.faceplusplus.com/humanbodypp/v1/detect'
 
     boundary = '----------%s' % hex(int(time.time() * 1000))
-    data = []
-    data.append(b'--%s' % boundary.encode('utf-8'))
-    data.append(b'Content-Disposition: form-data; name="%s"\r\n' % b'api_key')
-    data.append(key.encode('utf-8'))
-    data.append(b'--%s' % boundary.encode('utf-8'))
-    data.append(b'Content-Disposition: form-data; name="%s"\r\n' % b'api_secret')
-    data.append(secret.encode('utf-8'))
-    data.append(b'--%s' % boundary.encode('utf-8'))
+    data = [b'--%s' % boundary.encode('utf-8'), b'Content-Disposition: form-data; name="%s"\r\n' % b'api_key',
+            key.encode('utf-8'), b'--%s' % boundary.encode('utf-8'),
+            b'Content-Disposition: form-data; name="%s"\r\n' % b'api_secret', secret.encode('utf-8'),
+            b'--%s' % boundary.encode('utf-8')]
     fr = open(filepath, 'rb')
     data.append(b'Content-Disposition: form-data; name="%s"; filename="12263.jpg"' % b'image_file')
     data.append(b'Content-Type: %s\r\n' % b'application/octet-stream')
@@ -106,28 +102,24 @@ def face_plus_plus(filepath):
 
 class EndToEndModel(object):
 
-    def __init__(self, weights=None, gamma=3.0, pooling_regions=7, num_rois=1, theta=0.01, stage='train'):
+    def __init__(self, weights=None, gamma=3.0, pooling_regions=7, num_rois=1, theta=0.01, stage='train', image_file=None):
         self.weights = weights
         self.stage = stage
         self.gamma = gamma
         self.pooling_regions = pooling_regions
         self.num_rois = num_rois
         self.theta = theta
+        self.image_file = image_file
 
-
-    def cal_salient_region(self, sample):
-        images = sys.argv[1]
-        image_file = os.path.basename(images)
-        image_filepath = f"resized_testing\\resized_{image_file}"
+    def cal_salient_region(self):
+        image_filepath = f"resized_testing\\resized_{self.image_file}"
         face_plus_plus(image_filepath)
 
         # sr = tf.convert_to_tensor([top, left, height, width])
         sr = tf.convert_to_tensor(face_plus_plus(image_filepath))
-        # print("cal_salient_region's sr", sr)
 
         # Normalize the salient region coordinates by dividing by 16.0 (a scaling factor)
         sr = tf.cast(sr, dtype='float32')
-        # print("cal_salient_region's sr:", sr)
         sr = sr / 16.0
         # Tensor("saliency_box/map/while/truediv_6:0", shape=(4,), dtype=float32)
         # This tensor likely represents the bounding box coordinates of the salient region. The four elements
@@ -139,7 +131,7 @@ class EndToEndModel(object):
         return sr
 
     def cal_salient_regions(self, samples):
-        salient_regions = tf.map_fn(lambda sample: self.cal_salient_region(sample), samples)
+        salient_regions = tf.map_fn(lambda sample: self.cal_salient_region(), samples)
         return salient_regions
 
     def cal_salient_regions_output_shape(self, input_shape):
@@ -238,7 +230,8 @@ class EndToEndModel(object):
         return conv10
 
     def AELayer(self, X, Y, stage='train'):
-        sr = Lambda(self.cal_salient_regions, output_shape=self.cal_salient_regions_output_shape, name='saliency_box')(Y)
+        sr = Lambda(self.cal_salient_regions, output_shape=self.cal_salient_regions_output_shape, name='saliency_box')(
+            Y)
 
         out_roi_pool = RoiPoolingConv(self.pooling_regions, self.num_rois, name='roi_pooling')([X, sr])
         out = Flatten(name='flatten')(out_roi_pool)

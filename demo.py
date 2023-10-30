@@ -117,12 +117,13 @@ def run(model, images):
 
 
 # Main function to run the script
-def main(argv=None):
+def main():
     if len(sys.argv) <= 1:
         images = C.image_path
     else:
         images = sys.argv[1]
-    model = M.EndToEndModel(gamma=C.gamma, theta=C.theta, stage='test').BuildModel()
+        image_file = os.path.basename(images)
+    model = M.EndToEndModel(gamma=C.gamma, theta=C.theta, stage='test', image_file=image_file).BuildModel()
     model.load_weights(C.model)
     run(model, images)
 
