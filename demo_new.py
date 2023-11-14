@@ -1,6 +1,9 @@
 import warnings
 
 with warnings.catch_warnings():
+    import urllib.request
+    import time
+    import json
     import os
     import sys
     import cv2
@@ -29,6 +32,89 @@ def get_shape(img, w, h, scale, ratio):
             else:
                 size = (scale * w // h, scale)
     return img.resize(size, Image.ANTIALIAS)
+
+
+def face_plus_plus(filepath):
+    # API configuration
+    key = "ILUS28ltigP0UirSewQPZmKLCqFQEtg1"
+    secret = "vMLb1ufvKfjIgIcLShervHy723o7cdLI"
+
+    face_http_url = 'https://api-us.faceplusplus.com/facepp/v3/detect'
+    humanbody_http_url = 'https://api-us.faceplusplus.com/humanbodypp/v1/detect'
+
+    boundary = '----------%s' % hex(int(time.time() * 1000))
+    data = [b'--%s' % boundary.encode('utf-8'), b'Content-Disposition: form-data; name="%s"\r\n' % b'api_key',
+            key.encode('utf-8'), b'--%s' % boundary.encode('utf-8'),
+            b'Content-Disposition: form-data; name="%s"\r\n' % b'api_secret', secret.encode('utf-8'),
+            b'--%s' % boundary.encode('utf-8')]
+    fr = open(filepath, 'rb')
+    data.append(b'Content-Disposition: form-data; name="%s"; filename="12263.jpg"' % b'image_file')
+    data.append(b'Content-Type: %s\r\n' % b'application/octet-stream')
+    data.append(fr.read())
+    fr.close()
+    data.append(b'--%s--\r\n' % boundary.encode('utf-8'))
+
+    # Join data as bytes
+    http_body = b'\r\n'.join(data)
+
+    # Build HTTP request
+    req = urllib.request.Request(humanbody_http_url)
+
+    # Header
+    req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
+    req.data = http_body
+
+    try:
+        # Post data to server
+        resp = urllib.request.urlopen(req, timeout=5)
+        # Get response
+        qrcont = resp.read()
+        # Parse the JSON response
+        parsed_response = json.loads(qrcont)
+
+        # Check if human body detection was successful
+        if len(parsed_response['humanbodies']) != 0:
+            human_body_rectangle = parsed_response['humanbodies'][0]['humanbody_rectangle']
+
+            # Extract and print the face rectangle details
+            top = human_body_rectangle['top']
+            left = human_body_rectangle['left']
+            width = human_body_rectangle['width']
+            height = human_body_rectangle['height']
+            bottom = top + height
+            right = left + width
+
+            return [top, left, height, width]
+        else:
+            req = urllib.request.Request(face_http_url)
+
+            # Header
+            req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
+            req.data = http_body
+            # Post data to server
+            resp = urllib.request.urlopen(req, timeout=5)
+            # Get response
+            qrcont = resp.read()
+            # Parse the JSON response
+            parsed_response = json.loads(qrcont)
+            if len(parsed_response['faces']) != 0:
+                face_rectangle = parsed_response['faces'][0]['face_rectangle']
+
+                # Extract and print the face rectangle details
+                top = face_rectangle['top']
+                left = face_rectangle['left']
+                width = face_rectangle['width']
+                height = face_rectangle['height']
+                bottom = top + height
+                right = left + width
+
+                return [top, left, height, width]
+            else:
+                return None
+
+    except urllib.error.HTTPError as e:
+        print(e.read())
+        return None
 
 
 # Main function to process images
@@ -69,8 +155,9 @@ def run(images):
         # Add a batch dimension to the image
         image = np.expand_dims(image, axis=0)
         # Run face_plus_plus
-        fpp_box = [156, 55, 132, 96]
-        fpp_input = tf.convert_to_tensor([156, 55, 132, 96])
+        fpp_box = face_plus_plus(os.path.join("resized_testing", "resized_" + file_name))
+        # fpp_box = [156, 55, 132, 96]
+        fpp_input = tf.convert_to_tensor(fpp_box)
         fpp_input = tf.reshape(fpp_input, (1, 4))
         fpp_input = tf.cast(fpp_input, dtype='float32')
         fpp_input = fpp_input / 16.0
