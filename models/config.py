@@ -33,4 +33,3 @@ class Config:
         path_scale = str(self.scale)
         path_ratio = 'square' if self.ratio else ''
         return path_base + path_ratio + '_' + path_scale + path_ext
-        # return 'test.h5'
