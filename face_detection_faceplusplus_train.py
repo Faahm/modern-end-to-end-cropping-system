@@ -11,8 +11,8 @@ secret = "vMLb1ufvKfjIgIcLShervHy723o7cdLI"
 boundary = '----------%s' % hex(int(time.time() * 1000))
 
 # Input and output directories
-input_directory = "portrait_train_filtered_score"
-output_directory_detected = "face_detected"
+input_directory = "cuhk_images"
+output_directory_detected = "cuhk_images_portrait"
 output_directory_undetected = "face_not_detected"
 output_multiple_faces = "multiple_faces"
 

@@ -17,12 +17,12 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import mean_squared_error
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import EarlyStopping
 
 C = config.Config()
 
-rows = open('portrait_data.csv').read().strip().split("\n")
-training_folder = "resized_training"
+rows = open('portrait_data_compiled_resized_padded.csv').read().strip().split("\n")
+input_folder = "resized_training_compiled_resized_padded"
 
 data = []
 offsets = []
@@ -30,18 +30,27 @@ fpp_bbox = []
 filenames = []
 
 # Get the training data
+num_images_to_use = 10
+image_counter = 0
 for row in rows:
+    # if image_counter >= num_images_to_use:
+    #     break
     row = row.split(",")
     filename, x1, x2, y1, y2, top, bottom, left, right, height, width = row
-    if float(x1) < 0 or float(x2) < 0 or float(y1) < 0 or float(y2) < 0:
-        print(f"Found negative offsets in {filename}. Skipping...")
+    if (float(x1) < 0 or float(x2) < 0 or float(y1) < 0 or float(y2) < 0
+            or int(top) < 0 or int(left) < 0 or int(height) < 0 or int(width) < 0):
+        print(f"Found negative values in {filename}. Skipping...")
         continue
 
     # Get the image path by appending path with filename
-    image_path = os.path.join(training_folder, filename)
+    image_path = os.path.join(input_folder, filename)
+    if not os.path.exists(image_path):
+        print(f"Image file {filename} not found. Skipping...")
+        continue
 
     # Image pre-processing
     img_object = Image.open(image_path)
+    # img_object = img_object.resize((224, 224))
     img_object = img_object.convert('RGB')
     image = np.asarray(img_object)
 
@@ -54,6 +63,8 @@ for row in rows:
     offsets.append([float(x1), float(x2), float(y1), float(y2)])
     fpp_bbox.append(sr)
     data.append(image)
+
+    # image_counter += 1
 
 # Convert to numpy array and normalize pixel values
 data = np.array(data, dtype="float32") / 255.0
@@ -99,5 +110,5 @@ plt.show()
 
 # Save the model
 print("Saving the weights...")
-new_model.save("test_defense.h5")
+new_model.save("final_6_compiled.h5")
 print("Weights saved.")

@@ -1,19 +1,16 @@
-import warnings
-
-with warnings.catch_warnings():
-    import urllib.request
-    import time
-    import json
-    import os
-    import sys
-    import cv2
-    from utils import *
-    import numpy as np
-    from models import config
-    from models import model as M
-    from PIL import Image, ImageDraw
-    from modify_model import new_model
-    import tensorflow as tf
+import urllib.request
+import time
+import json
+import os
+import sys
+import cv2
+from utils import *
+import numpy as np
+from models import config
+from models import model as M
+from PIL import Image, ImageDraw
+from modify_model import new_model
+import tensorflow as tf
 
 # Load configuration settings from the custom Config class
 C = config.Config()
@@ -129,9 +126,6 @@ def run(images):
     else:
         raise Exception('Image file or directory not exist.')
     for image_name in test_db:
-
-        if not image_name.endswith(C.pic_extend):
-            continue
         img_object = Image.open(image_name)
         # print("image_name", image_name)
         w3, h3 = img_object.size
@@ -213,14 +207,10 @@ def run(images):
             f.write('\n'.join(result))
 
 
-# Main function to run the script
 def main():
-    if len(sys.argv) <= 1:
-        images = C.image_path
-    else:
-        images = sys.argv[1]
+    images = sys.argv[1]
     # model = M.EndToEndModel(gamma=C.gamma, theta=C.theta, stage='test', image_file=image_file).BuildModel()
-    new_model.load_weights("test_ambot.h5")
+    new_model.load_weights("final_6epochs.h5")
     run(images)
 
 

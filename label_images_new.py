@@ -4,11 +4,9 @@ import urllib.request
 import time
 import json
 from models import config
-
-with warnings.catch_warnings():
-    import os
-    import numpy as np
-    from PIL import Image
+import os
+import numpy as np
+from PIL import Image
 
 C = config.Config()
 
@@ -21,9 +19,8 @@ put in an array [filename, x1, x2, y1, y2]
 append to training_data array
 """
 
-portrait_data = []
-img_folder = "training_images"  # the path to the folder of images
-filename_list = os.listdir(img_folder)  # returns a list of all files in directory
+input_folder = "training_images"  # the path to the folder of images
+filename_list = os.listdir(input_folder)  # returns a list of all files in directory
 
 
 # Resize and padding
@@ -32,11 +29,8 @@ def get_shape(img, scale):
     max_side = max(w, h)
 
     if max_side <= scale:
-        # If the longest side is already smaller than or equal to the target size,
-        # then no need to resize.
         return img
 
-    # Calculate the new dimensions while maintaining the aspect ratio.
     if w >= h:
         new_w = scale
         new_h = int(h * (scale / w))
@@ -44,7 +38,6 @@ def get_shape(img, scale):
         new_w = int(w * (scale / h))
         new_h = scale
 
-    # Create a new blank white image with the target size (224x224).
     new_img = Image.new('RGB', (scale, scale), (255, 255, 255))
 
     # Calculate the padding values for both width and height.
@@ -65,38 +58,17 @@ def get_offset(wa, ha, bbox):
     x1a = 0, x2a = ha, y1a = 0, y2a = wa
     """
 
-    # print("wa:", wa)
-    # print("ha:", ha)
-    # print("bbox:", bbox)
-
     # divide by ha and wa to normalize
     o1 = float(bbox[0]) / float(ha)  # in relation to x1a
     o2 = float(ha - bbox[1]) / float(ha)  # in relation to x2a
     o3 = float(bbox[2]) / float(wa)  # in relation to x1a
     o4 = float(wa - bbox[3]) / float(wa)  # in relation to x2a
+    # o1 = max(0, float(bbox[0])) / float(ha)  # in relation to x1a, top
+    # o2 = float(ha - min(ha, bbox[1])) / float(ha)  # in relation to x2a, bottom
+    # o3 = max(0, float(bbox[2])) / float(wa)  # in relation to y1a, left
+    # o4 = float(wa - min(wa, bbox[3])) / float(wa)  # in relation to y2a, right
 
-    # print("offset:", [o1, o2, o3, o4])
     return [o1, o2, o3, o4]
-
-
-def add_offset(w, h, bbox, offset):
-    crop_h = int(h * (float(bbox[1]) - float(bbox[0])))
-    crop_w = int(w * (float(bbox[3]) - float(bbox[2])))
-
-    new_w = crop_w / (1 - float(offset[2]) - float(offset[3]) + 1e-10)
-    new_h = crop_h / (1 - float(offset[0]) - float(offset[1]) + 1e-10)
-
-    r_w = min(w, max(0, new_w))
-    r_h = min(h, max(0, new_h))
-
-    x1 = max(0, h * float(bbox[0]) - r_h * float(offset[0]))
-    x2 = min(h, x1 + r_h)
-    y1 = max(0, w * float(bbox[2]) - r_w * float(offset[2]))
-    y2 = min(w, y1 + r_w)
-
-    bbox_aes = [x1 / float(h), x2 / float(h), y1 / float(w), y2 / float(w)]
-
-    return bbox_aes
 
 
 def face_plus_plus(filepath):
@@ -182,30 +154,27 @@ def face_plus_plus(filepath):
         return None
 
 
-# IMAGE PRE PROCESSING!!!
-csv_file = "portrait_data.csv"
-resized_training_folder = "resized_training"
-# Create portrait_data.csv if it does not exist
+csv_file = "portrait_data_compiled_resized_padded.csv"
+output_folder = "resized_training_compiled_resized_padded"
 if not os.path.exists(csv_file):
     with open(csv_file, 'w', newline='') as file:
         csv_writer = csv.writer(file)
 
 with open(csv_file, 'a', newline='') as file:
-    if not os.path.exists(resized_training_folder):
-        os.makedirs(resized_training_folder)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
     writer = csv.writer(file)
 
     # Loop through the images in the original directory
     for filename in filename_list:
-        image_path = os.path.join(img_folder, filename)
+        image_path = os.path.join(input_folder, filename)
 
         # Check if the resized image already exists in the 'resized_training' directory
-        resized_image_path = os.path.join(resized_training_folder, filename)
+        resized_image_path = os.path.join(output_folder, filename)
         if os.path.exists(resized_image_path):
             print(f"Skipping {filename} - Already resized")
             continue
 
-        # GET THE IMAGE HEIGHT AND WIDTH
         img_object = Image.open(image_path)
         w3, h3 = img_object.size
         img_object = img_object.convert('RGB')
@@ -214,10 +183,11 @@ with open(csv_file, 'a', newline='') as file:
         img_reshape.save(resized_image_path)
         print(f"Resized and saved: {resized_image_path}")
 
-        image = np.asarray(img_reshape)
+        image = np.asarray(img_object)
         h2, w2 = (image.shape[0] // 16 + 1) * 16, (image.shape[1] // 16 + 1) * 16
 
         # get values of bounding box
+        resized_image_path = os.path.join(output_folder, filename)
         bbox = face_plus_plus(resized_image_path)
         if bbox is None:
             print(f"Human body or face could not be detected. Deleted {resized_image_path}")
@@ -227,8 +197,7 @@ with open(csv_file, 'a', newline='') as file:
 
         # get the values of the offset
         o1, o2, o3, o4 = get_offset(w2 - 1, h2 - 1, [top, bottom, left, right])
-        portrait_data.append([filename, o1, o2, o3, o4])
 
-        # Write the data to the CSV file immediately
+        # Write the data to the CSV file
         writer.writerow([filename, o1, o2, o3, o4, top, bottom, left, right, height, width])
-        print("Added to portrait_data.csv:", [filename, o1, o2, o3, o4, top, bottom, left, right, height, width])
+        print("Added to csv file:", [filename, o1, o2, o3, o4, top, bottom, left, right, height, width])

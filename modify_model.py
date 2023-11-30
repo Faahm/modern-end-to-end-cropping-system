@@ -12,6 +12,7 @@ C = config.Config()
 # LOADS the pretrained model
 model = M.EndToEndModel(gamma=C.gamma, theta=C.theta, stage='test').BuildModel()
 model.load_weights(C.model)
+# model.summary()
 
 img_input = model.layers[0].input
 fpp_input = Input((4,))
@@ -29,7 +30,7 @@ for layer in model.layers[-4:]:
 
 # New model
 new_model = Model([img_input, fpp_input], y)
-new_model.summary()
+# new_model.summary()
 
 # Test the model
 
